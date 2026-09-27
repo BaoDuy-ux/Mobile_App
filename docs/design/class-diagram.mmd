@@ -1,0 +1,130 @@
+classDiagram
+    direction LR
+    class User {
+        +UUID id
+        +String displayName
+    }
+    class Farm {
+        +UUID id
+        +UUID ownerId
+        +String name
+    }
+    class Plot {
+        +UUID id
+        +Decimal areaM2
+        +availableArea(activePlantings) Decimal
+    }
+    class Crop {
+        +UUID id
+        +String name
+    }
+    class Planting {
+        +UUID id
+        +PlantingStatus status
+        +Date plantedOn
+        +activate()
+        +complete(endedOn)
+        +cancel()
+    }
+    class Activity {
+        +UUID id
+        +ActivityType type
+        +Instant performedAt
+    }
+    class Harvest {
+        +UUID id
+        +Decimal quantityKg
+        +Instant harvestedAt
+    }
+    class StockLot {
+        +UUID id
+        +UUID cropId
+        +String lotCode
+    }
+    class StockMovement {
+        +UUID id
+        +MovementType type
+        +Decimal quantityDeltaKg
+    }
+    class Sale {
+        +UUID id
+        +SaleStatus status
+        +Long totalVnd
+        +calculateTotal() Long
+        +void()
+    }
+    class SaleItem {
+        +Decimal quantityKg
+        +Long unitPriceVndPerKg
+        +Long lineTotalVnd
+    }
+    class Expense {
+        +UUID id
+        +Long amountVnd
+        +void()
+    }
+    class Reminder {
+        +UUID id
+        +Instant dueAt
+        +complete()
+        +cancel()
+    }
+    class FarmService {
+        +createPlot(command) Plot
+        +updatePlot(command) Plot
+        +archivePlot(plotId)
+        +startPlanting(command) Planting
+        +recordActivity(command) Activity
+    }
+    class InventoryService {
+        +recordHarvest(command) Harvest
+        +openStock(command) StockLot
+        +adjustStock(command) StockMovement
+        +getBalance(lotId) Decimal
+    }
+    class SalesService {
+        +recordSale(command) Sale
+        +voidSale(saleId) Sale
+    }
+    class FinanceService {
+        +recordExpense(command) Expense
+        +voidExpense(expenseId)
+    }
+    class ReminderService {
+        +create(command) Reminder
+        +complete(reminderId)
+    }
+    class ReportService {
+        +getSummary(farmId,period) Report
+        +getJournal(farmId,filter) Page
+    }
+
+    User "1" --> "0..*" Farm : owns
+    Farm "1" --> "0..*" Plot
+    Farm "1" --> "0..*" Crop
+    Plot "1" --> "0..*" Planting
+    Crop "1" --> "0..*" Planting
+    Planting "1" --> "0..*" Activity
+    Planting "1" --> "0..*" Harvest
+    Harvest "0..1" --> "1" StockLot
+    StockLot "1" --> "1..*" StockMovement
+    Farm "1" --> "0..*" Sale
+    Sale "1" *-- "1..*" SaleItem
+    SaleItem "*" --> "1" StockLot
+    Farm "1" --> "0..*" Expense
+    Farm "1" --> "0..*" Reminder
+
+    FarmService ..> Plot
+    FarmService ..> Planting
+    FarmService ..> Activity
+    InventoryService ..> Harvest
+    InventoryService ..> StockLot
+    InventoryService ..> StockMovement
+    SalesService ..> Sale
+    SalesService ..> StockMovement
+    FinanceService ..> Expense
+    ReminderService ..> Reminder
+    ReportService ..> Harvest
+    ReportService ..> Sale
+    ReportService ..> Expense
+

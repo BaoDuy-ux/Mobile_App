@@ -1,0 +1,133 @@
+erDiagram
+    APP_USER ||--o{ FARM : owns
+    FARM ||--o{ PLOT : contains
+    FARM ||--o{ CROP : defines
+    PLOT ||--o{ PLANTING : hosts
+    CROP ||--o{ PLANTING : grown_as
+    PLANTING ||--o{ ACTIVITY : records
+    PLANTING ||--o{ HARVEST : produces
+    HARVEST o|--|| STOCK_LOT : creates
+    FARM ||--o{ STOCK_LOT : stores
+    CROP ||--o{ STOCK_LOT : identifies
+    STOCK_LOT ||--|{ STOCK_MOVEMENT : ledger
+    FARM ||--o{ SALE : records
+    SALE ||--|{ SALE_ITEM : contains
+    STOCK_LOT ||--o{ SALE_ITEM : supplies
+    SALE_ITEM o|--o{ STOCK_MOVEMENT : sale_postings
+    FARM ||--o{ EXPENSE : incurs
+    PLANTING o|--o{ EXPENSE : allocated_to
+    FARM ||--o{ REMINDER : schedules
+    PLANTING o|--o{ REMINDER : concerns
+
+    APP_USER {
+        uuid id PK
+        string email UK
+        string display_name
+        string password_hash "server only"
+        string status
+    }
+    FARM {
+        uuid id PK
+        uuid owner_id FK
+        string name
+        string address
+        string timezone
+    }
+    PLOT {
+        uuid id PK
+        uuid farm_id FK
+        string name
+        decimal area_m2
+        string location
+        string photo_key "nullable"
+        string note
+        datetime archived_at "nullable"
+    }
+    CROP {
+        uuid id PK
+        uuid farm_id FK
+        string name
+        string variety "nullable"
+        datetime archived_at "nullable"
+    }
+    PLANTING {
+        uuid id PK
+        uuid plot_id FK
+        uuid crop_id FK
+        string name
+        decimal area_m2
+        date planted_on
+        date expected_harvest_on
+        date ended_on "nullable"
+        string status "PLANNED ACTIVE COMPLETED CANCELLED"
+    }
+    ACTIVITY {
+        uuid id PK
+        uuid planting_id FK
+        string type "WATER FERTILIZE SPRAY NOTE"
+        string title
+        datetime performed_at
+        string note
+    }
+    HARVEST {
+        uuid id PK
+        uuid planting_id FK
+        decimal quantity_kg
+        datetime harvested_at
+        string note
+    }
+    STOCK_LOT {
+        uuid id PK
+        uuid farm_id FK
+        uuid crop_id FK
+        uuid harvest_id FK,UK "nullable for opening stock"
+        string lot_code
+        datetime received_at
+        date expires_on "nullable"
+    }
+    STOCK_MOVEMENT {
+        uuid id PK
+        uuid lot_id FK
+        uuid sale_item_id FK "nullable"
+        string type
+        decimal quantity_delta_kg "positive IN negative OUT"
+        datetime occurred_at
+        string reason "required for adjustment"
+    }
+    SALE {
+        uuid id PK
+        uuid farm_id FK
+        string customer_name "nullable"
+        datetime sold_at
+        string status "POSTED VOID"
+        bigint total_vnd
+        datetime voided_at "nullable"
+    }
+    SALE_ITEM {
+        uuid id PK
+        uuid sale_id FK
+        uuid lot_id FK
+        decimal quantity_kg
+        bigint unit_price_vnd_per_kg
+        bigint line_total_vnd
+    }
+    EXPENSE {
+        uuid id PK
+        uuid farm_id FK
+        uuid planting_id FK "nullable for general expense"
+        string category
+        string description
+        bigint amount_vnd
+        datetime paid_at
+        string status "POSTED VOID"
+    }
+    REMINDER {
+        uuid id PK
+        uuid farm_id FK
+        uuid planting_id FK "nullable"
+        string title
+        datetime due_at
+        datetime completed_at "nullable"
+        string status "PENDING DONE CANCELLED"
+    }
+
