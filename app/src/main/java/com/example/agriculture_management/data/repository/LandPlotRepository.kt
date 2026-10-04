@@ -82,7 +82,21 @@ class LandPlotRepository(
     suspend fun updatePlot(plot: LandPlot): Result<Unit> {
         if (plot.name.isBlank()) return Result.failure(IllegalArgumentException("Tên thửa đất không được rỗng"))
         if (plot.areaM2 <= 0) return Result.failure(IllegalArgumentException("Diện tích phải lớn hơn 0"))
-        dao.update(plot.toEntity().copy(updatedAt = clock.nowEpochMs()))
+        database.withTransaction {
+            val current = requireNotNull(dao.findById(plot.id)) { "Thửa đất không tồn tại hoặc đã được ẩn." }
+            require(current.farmId == plot.farmId) { "Không thể chuyển thửa đất sang nông trại khác." }
+            require(Math.multiplyExact(plot.areaM2, 100L) >= database.plantingDao().occupiedArea(plot.id)) {
+                "Diện tích không thể nhỏ hơn phần đã dành cho các vụ trồng."
+            }
+        database.withTransaction {
+            val current = requireNotNull(dao.findById(plot.id)) { "Thửa đất không tồn tại hoặc đã được ẩn." }
+            require(current.farmId == plot.farmId) { "Không thể chuyển thửa đất sang nông trại khác." }
+            require(Math.multiplyExact(plot.areaM2, 100L) >= database.plantingDao().occupiedArea(plot.id)) {
+                "Diện tích không thể nhỏ hơn phần đã dành cho các vụ trồng."
+            }
+            dao.update(plot.toEntity().copy(updatedAt = clock.nowEpochMs()))
+        }
+        }
         return Result.success(Unit)
     }
 

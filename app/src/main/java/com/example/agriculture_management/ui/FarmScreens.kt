@@ -173,7 +173,8 @@ fun LandListScreen(state: FarmState,back:()->Unit,add:()->Unit,detail:(String)->
 }
 
 @Composable
-fun LandDetailScreen(land: Land,state: FarmState,back:()->Unit,edit:()->Unit,plant:()->Unit) {
+fun LandDetailScreen(land: Land,state: FarmState,back:()->Unit,edit:()->Unit,plant:()->Unit,
+    plantings: List<com.example.agriculture_management.domain.model.PlantingSummary>? = null) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     Page(land.name,back,action={IconButton(onClick=edit) { Icon(Icons.Outlined.Edit,"Chỉnh sửa") }}) {
         LandImage(land,Modifier.fillMaxWidth().height(210.dp))
@@ -184,7 +185,24 @@ fun LandDetailScreen(land: Land,state: FarmState,back:()->Unit,edit:()->Unit,pla
         Spacer(Modifier.height(20.dp))
         when(tab) {
             0,1 -> {
-                if(land.crop.isBlank()) { EmptyContent(plant) }
+                if (plantings != null) {
+                    if (plantings.isEmpty()) Text("Chưa có vụ trồng trên thửa đất này.", color=Muted)
+                    plantings.forEach { row ->
+                        FarmCard {
+                            Text(row.cropName, fontWeight=FontWeight.SemiBold)
+                            Text("Diện tích ${plantingArea(row.areaM2x100)} m²", color=Forest)
+                            Text("Ngày trồng: ${plantingDate(row.plantedOn)}", color=Muted)
+                            Text("Dự kiến thu hoạch: ${plantingDate(row.expectedHarvestOn)}", color=Muted)
+                        }
+                        Spacer(Modifier.height(10.dp))
+                    }
+                    Section("Ghi chú");Text(land.note.ifBlank { "Chưa có ghi chú" },color=Muted)
+                    if(land.location.isNotBlank()) { Section("Vị trí");Text(land.location,color=Muted) }
+                    Spacer(Modifier.height(18.dp))
+                    PrimaryButton("Thêm vụ trồng",onClick=plant)
+                    TextButton(onClick=edit) { Text("Chỉnh sửa thửa đất") }
+                }
+                else if(land.crop.isBlank()) { EmptyContent(plant) }
                 else {
                     land.crop.split(", ").forEach { crop ->
                         FarmCard { Row(verticalAlignment=Alignment.CenterVertically) { CropIcon(crop);Spacer(Modifier.width(12.dp));Column { Text(crop,fontWeight=FontWeight.Medium);Text("Diện tích ${number(land.cropAreas[crop] ?: (land.area/land.crop.split(", ").size))} m²",fontSize=12.sp,color=Muted) } } }
@@ -244,7 +262,6 @@ fun AddLandScreen(existing: Land?,back:()->Unit,save:(Land)->Unit) {
         PrimaryButton("Lưu") {
             val parsed=area.toIntOrNull()
             if(name.isBlank() || parsed==null || parsed<=0) error="Nhập tên thửa đất và diện tích lớn hơn 0."
-            else if(existing!=null && parsed<existing.cropAreas.values.sum()) error="Diện tích không thể nhỏ hơn phần đang trồng."
             else save((existing ?: Land(System.currentTimeMillis().toString(),"",0)).copy(name=name.trim(),area=parsed,location=location.trim(),note=note.trim(),photo=photo))
         }
     }
@@ -262,44 +279,6 @@ fun ChooseField(label: String, options: List<String>, value: String, choose: (St
         }
         DropdownMenu(expanded,{expanded=false}) { options.forEach { item -> DropdownMenuItem(text={Text(item)},onClick={choose(item);expanded=false}) } }
     }
-    }
-}
-
-@Composable
-fun AddPlantingScreen(state: FarmState,selectedId: String,back:()->Unit,save:(Land)->Unit) {
-    var landId by rememberSaveable { mutableStateOf(state.lands.find { it.id==selectedId }?.id ?: state.lands.firstOrNull()?.id ?: "") }
-    var crop by rememberSaveable { mutableStateOf("Rau cải") };var area by rememberSaveable { mutableStateOf("") }
-    var planted by rememberSaveable { mutableStateOf(today()) };var harvest by rememberSaveable { mutableStateOf("") }
-    var error by rememberSaveable { mutableStateOf("") }
-    Page("Thêm vụ trồng",back) {
-        val land=state.lands.find { it.id==landId }
-        ChooseField("Chọn thửa đất",state.lands.map { "${it.name} · ${it.id.takeLast(4)}" },land?.let { "${it.name} · ${it.id.takeLast(4)}" } ?: "") { choice ->
-            landId=state.lands.first { "${it.name} · ${it.id.takeLast(4)}"==choice }.id
-        }
-        Text("Chọn cây trồng",fontSize=13.sp,fontWeight=FontWeight.Medium)
-        cropNames.chunked(3).forEach { row ->
-            Row(Modifier.fillMaxWidth().padding(top=10.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-                row.forEach { name -> Column(Modifier.weight(1f).clip(RoundedCornerShape(13.dp)).background(if(crop==name) Pale else Color.White).clickable { crop=name }.padding(13.dp),horizontalAlignment=Alignment.CenterHorizontally) {
-                    CropIcon(name);Text(name,fontSize=11.sp,modifier=Modifier.padding(top=8.dp))
-                } }
-                repeat(3-row.size) { Spacer(Modifier.weight(1f)) }
-            }
-        }
-        Spacer(Modifier.height(22.dp));Field("Diện tích (m²)",area,{area=it},"Nhập diện tích",keyboardType=KeyboardType.Number)
-        DateField("Ngày trồng",planted) { planted=it };DateField("Dự kiến thu hoạch",harvest) { harvest=it }
-        if(error.isNotBlank()) Text(error,color=Coral,modifier=Modifier.padding(bottom=12.dp))
-        PrimaryButton("Lưu") {
-            val parsed=area.toIntOrNull();val format=DateTimeFormatter.ofPattern("dd/MM/yyyy")
-            val allocations=land?.crop?.split(", ")?.filter { it.isNotBlank() }?.associateWith { land.cropAreas[it] ?: land.area/land.crop.split(", ").size } ?: emptyMap()
-            val available=(land?.area ?: 0)-allocations.filterKeys { it!=crop }.values.sum()
-            when {
-                land==null -> error="Hãy thêm một thửa đất trước."
-                parsed==null || parsed<=0 || parsed>available -> error="Diện tích phải lớn hơn 0 và không vượt quá phần còn lại ($available m²)."
-                harvest.isBlank() -> error="Vui lòng chọn ngày thu hoạch."
-                LocalDate.parse(harvest,format)<LocalDate.parse(planted,format) -> error="Ngày thu hoạch phải từ ngày trồng trở đi."
-                else -> { state.logs.add(0,FarmLog("Trồng $crop ($parsed m²)",land.name,today(),3));save(land.copy(crop=(land.crop.split(", ").filter { it.isNotBlank() }+crop).distinct().joinToString(", "),planted=planted,harvest=harvest,cropAreas=allocations+(crop to parsed))) }
-            }
-        }
     }
 }
 

@@ -31,7 +31,9 @@ fun ScreenGallery(screen: Screen,state: FarmState) {
         Screen.Lands -> LandListScreen(state,{},{},{})
         Screen.LandDetail -> LandDetailScreen(state.lands.first(),state,{},{},{})
         Screen.AddLand -> AddLandScreen(null,{},{})
-        Screen.AddPlanting -> AddPlantingScreen(state,"1",{},{})
+        Screen.AddPlanting -> AddPlantingScreen(state.lands,
+            cropNames.map { com.example.agriculture_management.domain.model.CropOption(it, "preview", it) },
+            emptyList(), "1", {}, save = {})
         Screen.QuickAction -> QuickActionScreen({},{},{})
         Screen.Logs -> LogsScreen(state,{},{})
         Screen.Report -> ReportScreen {}

@@ -41,4 +41,4 @@ SQLite/Room giữ khóa ngoại, nhưng không tự biết mọi quy tắc nghi�
 6. SaleItem chỉ dùng lot thuộc cùng Farm với Sale.
 7. `lineTotalVnd` và `totalVnd` phải được tính lại trong transaction.
 
-Database được khai báo trong `data/local/database/FarmDatabase.kt`; tạo singleton bằng `FarmDatabaseProvider.get(context)`. Phần thửa đất kết nối Room qua `LandPlotRepository` và `LandPlotViewModel`, được lắp ghép trong `ui/GreenFarmApp.kt`. Các phần cây trồng, nhật ký và kho vẫn dùng `FarmState`.
+Database được khai báo trong `data/local/database/FarmDatabase.kt`; tạo singleton bằng `FarmDatabaseProvider.get(context)`. Thửa đất và vụ trồng kết nối Room qua `LandPlotRepository`, `PlantingRepository` và `LandPlotViewModel`, được lắp ghép trong `ui/GreenFarmApp.kt`. `CropDao` đọc danh mục cây; `PlantingDao` lưu vụ và phát danh sách qua Flow. Nhật ký và kho vẫn dùng `FarmState`; báo cáo còn là dữ liệu mẫu. Sao lưu JSON hiện chưa bao gồm Room.

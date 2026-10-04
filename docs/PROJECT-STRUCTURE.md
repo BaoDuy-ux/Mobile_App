@@ -28,15 +28,19 @@ data/
       LandPlotDao.kt            # Các truy vấn thửa đất
       FarmDao.kt                # Các truy vấn nông trại bằng Room
       UserDao.kt                # Các truy vấn người dùng
+      CropDao.kt                # Đọc danh mục cây theo nông trại
+      PlantingDao.kt            # Lưu vụ, quan sát vụ và tính diện tích đã dùng
     demo/
       DemoFarmDao.kt            # Interface mẫu và InMemoryFarmDao lưu trong RAM
       DemoFarmRecord.kt         # Bản ghi dùng cho mã mẫu
   repository/
     LandPlotRepository.kt       # Kiểm tra và lưu/đọc thửa đất
+    PlantingRepository.kt       # Kiểm tra ngày/diện tích/quan hệ và lưu vụ trong transaction
     FarmRepository.kt           # Repository mẫu dùng DemoFarmDao
 domain/
   model/
     LandPlot.kt                 # Đối tượng thửa đất dùng trong nghiệp vụ
+    Planting.kt                 # CreatePlanting, CropOption và PlantingSummary
 feature/
   landplot/
     LandPlotViewModel.kt        # Nhận yêu cầu, gọi repository, cập nhật trạng thái
@@ -53,6 +57,27 @@ GreenFarmApp → LandPlotViewModel → LandPlotRepository → LandPlotDao → SQ
 ```
 
 Khi đọc, DAO trả `Flow`; ViewModel cập nhật `LandPlotUiState` để Compose nhận dữ liệu mới.
+
+## Vụ trồng đã nối Room
+
+`ui/AddPlantingScreen.kt` nhận thửa đất, danh mục cây và vụ trồng từ Room. Khi lưu:
+
+```text
+AddPlantingScreen → LandPlotViewModel → PlantingRepository → PlantingDao → SQLite
+```
+
+- Tạo danh mục 5 cây mặc định theo nông trại, không tạo trùng khi mở lại app.
+- Chọn đúng ID thửa đất mới; không còn sửa `FarmState.lands` khi tạo vụ trồng.
+- Diện tích nhập hỗ trợ 2 số thập phân, lưu bằng 1/100 m². Ngày lưu ISO `yyyy-MM-dd`.
+- Repository kiểm tra cây/thửa đất tồn tại và cùng nông trại; ngày thu hoạch không trước ngày trồng; tổng diện tích chưa kết thúc không vượt diện tích đất.
+- Vụ mới có trạng thái ACTIVE. Các vụ ACTIVE/PLANNED chưa kết thúc đều giữ diện tích; chưa có thao tác kết thúc vụ trong giao diện.
+- Kiểm tra diện tích và insert chạy cùng transaction; sửa diện tích đất cũng kiểm tra phần đã dành cho vụ trồng.
+- Flow cập nhật danh sách và chi tiết thửa đất; chi tiết hiển thị riêng ngày và diện tích của từng vụ.
+- ViewModel được lấy bằng `viewModel()` và Factory, có chặn lưu lặp, trạng thái đang lưu và bắt lỗi.
+
+Schema vẫn ở version 2 vì các bảng đã tồn tại; lần này chỉ bổ sung DAO và luồng xử lý. Không xóa dữ liệu cũ. Chưa tự chuyển vụ mẫu từ SharedPreferences sang Room vì ID và mô hình dữ liệu khác nhau. Nhật ký, kho, báo cáo và sao lưu JSON vẫn là các phần riêng; tạo vụ không còn thêm nhật ký mẫu để tránh ghi hai nguồn dữ liệu khác nhau.
+
+Kiểm thử mới: `app/src/androidTest/.../PlantingRepositoryTest.kt` dùng database test riêng để kiểm tra lưu/mở lại, ngày sai, diện tích không hợp lệ, cùng cây nhiều vụ, lưu đồng thời, tham chiếu khác nông trại, thu nhỏ đất và tạo danh mục lặp.
 
 ## Tên cũ và tên mới
 
