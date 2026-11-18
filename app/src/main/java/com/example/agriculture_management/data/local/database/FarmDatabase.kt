@@ -9,6 +9,11 @@ import com.example.agriculture_management.data.local.dao.LandPlotDao
 import com.example.agriculture_management.data.local.dao.UserDao
 import com.example.agriculture_management.data.local.dao.CropDao
 import com.example.agriculture_management.data.local.dao.PlantingDao
+import com.example.agriculture_management.data.local.ActivityDao
+import com.example.agriculture_management.data.local.HarvestAndInventoryDao
+import com.example.agriculture_management.data.local.FinanceDao
+import com.example.agriculture_management.data.local.ReminderDao
+import com.example.agriculture_management.data.local.ReportDao
 
 @Database(
     entities = [
@@ -35,4 +40,9 @@ abstract class FarmDatabase : RoomDatabase() {
     abstract fun plotDao(): LandPlotDao
     abstract fun cropDao(): CropDao
     abstract fun plantingDao(): PlantingDao
+    abstract fun activityDao(): ActivityDao
+    abstract fun harvestAndInventoryDao(): HarvestAndInventoryDao
+    abstract fun financeDao(): FinanceDao
+    abstract fun reminderDao(): ReminderDao
+    abstract fun reportDao(): ReportDao
 }
