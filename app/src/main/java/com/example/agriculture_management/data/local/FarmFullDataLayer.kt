@@ -1,26 +1,16 @@
 package com.example.agriculture_management.data.local
 
 import androidx.room.Dao
-import androidx.room.Database
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.RoomDatabase
 import androidx.room.withTransaction
 import com.example.agriculture_management.core.EntityId
 import com.example.agriculture_management.core.Outcome
-import com.example.agriculture_management.data.local.dao.CropDao
-import com.example.agriculture_management.data.local.dao.FarmDao
-import com.example.agriculture_management.data.local.dao.LandPlotDao
-import com.example.agriculture_management.data.local.dao.PlantingDao
-import com.example.agriculture_management.data.local.dao.UserDao
+import com.example.agriculture_management.data.local.database.FarmDatabase
 import com.example.agriculture_management.data.local.entity.ActivityEntity
-import com.example.agriculture_management.data.local.entity.CropEntity
 import com.example.agriculture_management.data.local.entity.ExpenseEntity
-import com.example.agriculture_management.data.local.entity.FarmEntity
 import com.example.agriculture_management.data.local.entity.HarvestEntity
-import com.example.agriculture_management.data.local.entity.LandPlotEntity
-import com.example.agriculture_management.data.local.entity.PlantingEntity
 import com.example.agriculture_management.data.local.entity.ReminderEntity
 import com.example.agriculture_management.data.local.entity.SaleEntity
 import com.example.agriculture_management.data.local.entity.SaleItemEntity
@@ -338,37 +328,6 @@ interface ReportDao {
     fun observeMonthlyExpense(farmId: String): Flow<List<MonthlyFinanceRow>>
 }
 
-@Database(
-    entities = [
-        UserEntity::class,
-        FarmEntity::class,
-        LandPlotEntity::class,
-        CropEntity::class,
-        PlantingEntity::class,
-        ActivityEntity::class,
-        HarvestEntity::class,
-        StockLotEntity::class,
-        StockMovementEntity::class,
-        SaleEntity::class,
-        SaleItemEntity::class,
-        ExpenseEntity::class,
-        ReminderEntity::class
-    ],
-    version = 3,
-    exportSchema = true
-)
-abstract class UpgradedFarmDatabase : RoomDatabase() {
-    abstract fun userDao(): UserDao
-    abstract fun farmDao(): FarmDao
-    abstract fun plotDao(): LandPlotDao
-    abstract fun cropDao(): CropDao
-    abstract fun plantingDao(): PlantingDao
-    abstract fun activityDao(): ActivityDao
-    abstract fun harvestAndInventoryDao(): HarvestAndInventoryDao
-    abstract fun financeDao(): FinanceDao
-    abstract fun reminderDao(): ReminderDao
-    abstract fun reportDao(): ReportDao
-}
 
 data class FarmReportSummary(
     val totalRevenueVnd: Long = 0L,
@@ -384,7 +343,7 @@ data class FarmReportSummary(
 }
 
 class FarmOperationsRepository(
-    private val database: UpgradedFarmDatabase,
+    private val database: FarmDatabase,
     private val clock: AppClock = SystemAppClock
 ) {
     private val activityDao = database.activityDao()
