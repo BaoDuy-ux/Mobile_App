@@ -21,6 +21,10 @@ import com.example.agriculture_management.data.repository.PlantingRepository
 import com.example.agriculture_management.domain.model.PlantingSummary
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.agriculture_management.data.local.FarmOperationsRepository
+import com.example.agriculture_management.feature.operations.BindFarmStateToRoom
+import com.example.agriculture_management.feature.operations.FarmOperationsViewModel
+import com.example.agriculture_management.platform.reminder.ReminderNotificationWorker
 
 enum class Screen { Splash, Onboarding, Login, Home, Lands, LandDetail, AddLand, AddPlanting, QuickAction,
     Logs, Report, Inventory, Reminders, Settings, Backup, Profile, More, Empty, Record }
@@ -39,6 +43,12 @@ fun GreenFarmApp(store: FarmState? = null) {
     })
     val plotState = plotViewModel.uiState
     val roomLands = plotState.plots.map { plot -> plot.toLand(plotState.plantings.filter { it.plotId == plot.id }) }
+    val operationsRepository = remember(database) { FarmOperationsRepository(database) }
+    val operationsViewModel: FarmOperationsViewModel = viewModel(factory = remember(operationsRepository) { object : ViewModelProvider.Factory { @Suppress("UNCHECKED_CAST") override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T = FarmOperationsViewModel(operationsRepository) as T } })
+    val opsState = operationsViewModel.uiState
+    BindFarmStateToRoom(state = state, operationsViewModel = operationsViewModel)
+    LaunchedEffect(opsState.error, opsState.successMessage) { (opsState.error ?: opsState.successMessage)?.let { message(it); operationsViewModel.clearMessages() } }
+    LaunchedEffect(Unit) { ReminderNotificationWorker.schedulePeriodicChecks(context.applicationContext) }
     var route by rememberSaveable { mutableStateOf(Screen.Splash.name) }
     var history by rememberSaveable { mutableStateOf(listOf<String>()) }
     var selectedLand by rememberSaveable { mutableStateOf("plot-1") }
