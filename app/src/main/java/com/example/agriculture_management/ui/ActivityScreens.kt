@@ -27,6 +27,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import com.example.agriculture_management.domain.model.CropOption
+import com.example.agriculture_management.domain.model.PlantingSummary
+import com.example.agriculture_management.feature.operations.FarmOperationsViewModel
+import java.text.SimpleDateFormat
+import androidx.compose.runtime.collectAsState
 
 private val activityColors=listOf(Forest,Coral,Violet,Color(0xFF63A28A),Color(0xFF5C9EA0))
 private val activityIcons=listOf(Icons.Outlined.Eco,Icons.Outlined.ShoppingCart,Icons.Outlined.AccountBalanceWallet,Icons.Outlined.WaterDrop,Icons.Outlined.HealthAndSafety)
@@ -86,7 +91,7 @@ fun LogsScreen(state: FarmState,back:()->Unit,add:()->Unit) {
 }
 
 @Composable
-fun RecordScreen(kind: Int,state: FarmState,back:()->Unit,saved:()->Unit) {
+fun RecordScreen(kind: Int,state: FarmState,back:()->Unit,plantings: List<PlantingSummary> = emptyList(), crops: List<CropOption> = emptyList(), operationsViewModel: FarmOperationsViewModel? = null, saved:()->Unit) {
     var land by rememberSaveable { mutableStateOf(state.lands.firstOrNull()?.name ?: "") }
     var crop by rememberSaveable { mutableStateOf("Rau cải") }
     var title by rememberSaveable { mutableStateOf("") }
@@ -116,6 +121,19 @@ fun RecordScreen(kind: Int,state: FarmState,back:()->Unit,saved:()->Unit) {
                         val updated=Product(crop,stock+if(kind==0) quantity else -quantity)
                         if(index<0) state.products.add(updated) else state.products[index]=updated
                     }
+                    if (operationsViewModel != null) {
+                        val landName = land
+                        val qty = quantity
+                        val detail = title.trim()
+                        val matchedPlanting = plantings.firstOrNull { it.plotName == landName && (kind >= 2 || it.cropName == crop) } ?: plantings.firstOrNull { it.plotName == landName }
+                        val matchedCropId = matchedPlanting?.cropId ?: crops.firstOrNull { it.name == crop }?.id
+                        when (kind) {
+                            0 -> if (matchedPlanting != null && matchedCropId != null) operationsViewModel.recordHarvest(plantingId = matchedPlanting.id, cropId = matchedCropId, quantityKg = qty, note = "$landName • $date")
+                            1 -> operationsViewModel.recordSale(cropName = crop, quantityKg = qty, totalAmountVnd = 0L)
+                            2 -> operationsViewModel.recordExpense(plantingId = matchedPlanting?.id, category = "Vật tư", description = detail, amountVnd = qty.toLong())
+                            3 -> if (matchedPlanting != null) operationsViewModel.recordCareActivity(plantingId = matchedPlanting.id, type = "CARE", title = detail, note = "$landName • $date")
+                        }
+                    }
                     saved()
                 }
             }
@@ -124,7 +142,9 @@ fun RecordScreen(kind: Int,state: FarmState,back:()->Unit,saved:()->Unit) {
 }
 
 @Composable
-fun ReportScreen(back:()->Unit) {
+fun ReportScreen(back:()->Unit, operationsViewModel: FarmOperationsViewModel? = null) {
+    val opsState = operationsViewModel?.uiState?.collectAsState()?.value
+    val hasRealReport = opsState != null && (opsState.report.totalRevenueVnd > 0L || opsState.report.totalExpenseVnd > 0L || opsState.report.totalHarvestGrams > 0L)
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var month by rememberSaveable { mutableStateOf("Tháng 9/2026") }
     val current=month=="Tháng 9/2026"
@@ -140,7 +160,7 @@ fun ReportScreen(back:()->Unit) {
         Tabs(listOf("Sản lượng","Doanh thu","Chi phí"),tab) { tab=it };Spacer(Modifier.height(17.dp))
         FarmCard {
             Text(listOf("Tổng sản lượng","Tổng doanh thu","Tổng chi phí")[tab],color=Muted)
-            Text(when(tab) {0->if(current) "130 kg" else "116 kg";1->if(current) "900.000 đ" else "800.000 đ";else->if(current) "250.000 đ" else "280.000 đ"},style=MaterialTheme.typography.headlineLarge,modifier=Modifier.padding(vertical=6.dp))
+            Tif (hasRealReport && opsState != null) when(tab) { 0 -> "${opsState.report.totalHarvestKg.toInt()} kg"; 1 -> "${opsState.report.totalRevenueVnd} đ"; else -> "${opsState.report.totalExpenseVnd} đ" } else ext(when(tab) {0->if(current) "130 kg" else "116 kg";1->if(current) "900.000 đ" else "800.000 đ";else->if(current) "250.000 đ" else "280.000 đ"},style=MaterialTheme.typography.headlineLarge,modifier=Modifier.padding(vertical=6.dp))
             Text(if(!current) "Dữ liệu minh họa trong tháng" else if(tab==2) "↘ 10,7% so với tháng trước" else if(tab==1) "↗ 12,5% so với tháng trước" else "↗ 12% so với tháng trước",color=Forest,fontSize=12.sp)
             Text(if(tab==0) "Đơn vị: kg" else "Đơn vị: nghìn đồng",fontSize=10.sp,color=Muted,modifier=Modifier.padding(top=10.dp))
             Spacer(Modifier.height(24.dp))
@@ -218,7 +238,8 @@ fun InventoryScreen(state: FarmState,back:()->Unit) {
 }
 
 @Composable
-fun RemindersScreen(state: FarmState,back:()->Unit) {
+fun RemindersScreen(state: FarmState,back:()->Unit, operationsViewModel: FarmOperationsViewModel? = null)  {
+    val opsState = operationsViewModel?.uiState?.collectAsState()?.value
     var tab by rememberSaveable { mutableIntStateOf(0) };var dialog by rememberSaveable { mutableStateOf(false) }
     var title by rememberSaveable { mutableStateOf("") };var land by rememberSaveable { mutableStateOf(state.lands.firstOrNull()?.name ?: "") }
     var date by rememberSaveable { mutableStateOf(today()) };var error by remember { mutableStateOf("") }
@@ -232,7 +253,7 @@ fun RemindersScreen(state: FarmState,back:()->Unit) {
                     Row(verticalAlignment=Alignment.CenterVertically) {
                         IconTile(when { r.title.contains("Tưới")->Icons.Outlined.WaterDrop;r.title.contains("Thu")->Icons.Outlined.Eco;else->Icons.Outlined.NotificationsNone },if(r.done) Muted else Forest)
                         Spacer(Modifier.width(12.dp));Column(Modifier.weight(1f)) { Text(r.title,fontWeight=FontWeight.Medium);Text(r.land,color=Muted,fontSize=12.sp);Text(r.date,color=Muted,fontSize=11.sp) }
-                        Checkbox(checked=r.done,onCheckedChange={state.reminders[index]=r.copy(done=it);state.save()},modifier=Modifier.semantics { contentDescription="Hoàn thành ${r.title}" })
+                        Checkbox(checked=r.done,onCheckedChange={state.reminders[index]=r.copy(done=it);state.save();opsState?.reminders?.firstOrNull { rem -> rem.title == r.title }?.let { rem -> operationsViewModel?.toggleReminder(rem.id, !rem.done) }},modifier=Modifier.semantics { contentDescription="Hoàn thành ${r.title}" })
                     }
                 };Spacer(Modifier.height(12.dp))
             }
@@ -245,5 +266,5 @@ fun RemindersScreen(state: FarmState,back:()->Unit) {
     if(dialog) AlertDialog(onDismissRequest={dialog=false},title={Text("Thêm nhắc việc")},text={Column {
         Field("Công việc",title,{title=it},"Ví dụ: Tưới nước");ChooseField("Thửa đất",state.lands.map { it.name },land) { land=it };DateField("Ngày thực hiện",date) { date=it }
         if(error.isNotBlank()) Text(error,color=Coral)
-    }},confirmButton={TextButton(onClick={if(title.isBlank() || land.isBlank()) error="Vui lòng nhập công việc và chọn thửa đất." else {state.reminders.add(Reminder(title.trim(),land,date));state.save();dialog=false}}) { Text("Lưu") }},dismissButton={TextButton(onClick={dialog=false}) { Text("Hủy") }})
+    }},confirmButton={TextButton(onClick={if(title.isBlank() || land.isBlank()) error="Vui lòng nhập công việc và chọn thửa đất." else {state.reminders.add(Reminder(title.trim(),land,date));state.save();operationsViewModel?.addReminder(title = title.trim(), dueAtMillis = System.currentTimeMillis() + 86_400_000L);dialog=false}}) { Text("Lưu") }},dismissButton={TextButton(onClick={dialog=false}) { Text("Hủy") }})
 }
