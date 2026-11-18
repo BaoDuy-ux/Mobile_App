@@ -133,15 +133,15 @@ fun GreenFarmApp(store: FarmState? = null) {
                         } }
                         Screen.QuickAction -> QuickActionScreen(::back,{ target -> if(target==Screen.AddLand) editing=false;go(target) }) { recordKind=it;go(Screen.Record) }
                         Screen.Logs -> LogsScreen(state,::back) { go(Screen.QuickAction) }
-                        Screen.Report -> ReportScreen(::back)
+                        Screen.Report -> ReportScreen(::back, operationsViewModel)
                         Screen.Inventory -> InventoryScreen(state,::back)
-                        Screen.Reminders -> RemindersScreen(state,::back)
-                        Screen.Settings -> SettingsScreen(state,::back,::go,::message)
-                        Screen.Backup -> BackupScreen(state,::back,::message)
-                        Screen.Profile -> ProfileScreen(state,::back) { history=emptyList();route=Screen.Login.name }
+                        Screen.Reminders -> RemindersScreen(state, ::back, operationsViewModel)
+                        Screen.Settings -> SettingsScreen(state, ::back, ::go, ::message, operationsViewModel)
+                        Screen.Backup -> BackupScreen(state, ::back, ::message, operationsViewModel)
+                        Screen.Profile -> ProfileScreen(state, ::back, operationsViewModel) { history=emptyList();route=Screen.Login.name }
                         Screen.More -> MoreScreen(state,::back,::go,::message)
                         Screen.Empty -> EmptyScreen(::back) { editing=false;go(Screen.AddLand) }
-                        Screen.Record -> RecordScreen(recordKind,state,::back) { state.save();back();message("Đã lưu hoạt động") }
+                        Screen.Record -> RecordScreen(recordKind, state, ::back, plotState.plantings, plotState.crops, operationsViewModel) { state.save();back();message("Đã lưu hoạt động") }
                     }
                 }
             }
