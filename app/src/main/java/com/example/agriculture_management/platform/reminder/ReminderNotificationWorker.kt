@@ -11,7 +11,6 @@ import android.os.Build
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.room.Room
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -20,7 +19,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.example.agriculture_management.MainActivity
 import com.example.agriculture_management.R
-import com.example.agriculture_management.data.local.UpgradedFarmDatabase
+import com.example.agriculture_management.data.local.database.FarmDatabaseProvider
 import java.util.concurrent.TimeUnit
 
 class ReminderNotificationWorker(
@@ -37,11 +36,7 @@ class ReminderNotificationWorker(
 
         ensureNotificationChannel(applicationContext)
 
-        val db = Room.databaseBuilder(
-            applicationContext,
-            UpgradedFarmDatabase::class.java,
-            "nong_san_xanh.db"
-        ).fallbackToDestructiveMigrationOnDowngrade(true).build()
+        val db = FarmDatabaseProvider.get(applicationContext)
 
         return try {
             val now = System.currentTimeMillis()
@@ -60,7 +55,6 @@ class ReminderNotificationWorker(
         } catch (e: Exception) {
             Result.retry()
         } finally {
-            db.close()
         }
     }
 
