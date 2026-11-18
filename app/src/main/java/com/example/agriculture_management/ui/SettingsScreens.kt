@@ -19,9 +19,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.agriculture_management.feature.operations.FarmOperationsViewModel
 
 @Composable
-fun SettingsScreen(state: FarmState,back:()->Unit,go:(Screen)->Unit,message:(String)->Unit) {
+fun SettingsScreen(state: FarmState,back:()->Unit,go:(Screen)->Unit,message:(String)->Unit,operationsViewModel: FarmOperationsViewModel? = null) {
     var info by remember { mutableStateOf("") };var restore by remember { mutableStateOf(false) }
     Page("Cài đặt",back) {
         FarmCard {
@@ -40,14 +41,14 @@ fun SettingsScreen(state: FarmState,back:()->Unit,go:(Screen)->Unit,message:(Str
     }
     InfoDialog("Thông tin",info) { info="" }
     if(restore) AlertDialog(onDismissRequest={restore=false},title={Text("Khôi phục bản sao lưu?")},text={Text("Dữ liệu thửa đất, kho, nhật ký và nhắc việc hiện tại sẽ được thay bằng bản sao lưu gần nhất trên thiết bị.")},
-        confirmButton={TextButton(onClick={message(if(state.restore()) "Đã khôi phục dữ liệu" else "Chưa có bản sao lưu hợp lệ");restore=false}) { Text("Khôi phục") }},dismissButton={TextButton(onClick={restore=false}) { Text("Hủy") }})
+        confirmButton={TextButton(onClick={val json = operationsViewModel?.uiState?.value?.lastBackupJson; if (json != null) operationsViewModel?.restoreBackupJson(json); message(if(state.restore()) "Đã khôi phục dữ liệu" else "Chưa có bản sao lưu hợp lệ"); restore=false}) { Text("Khôi phục") }},dismissButton={TextButton(onClick={restore=false}) { Text("Hủy") }})
 }
 
 @Composable
-fun BackupScreen(state: FarmState,back:()->Unit,message:(String)->Unit) {
+fun BackupScreen(state: FarmState,back:()->Unit,message:(String)->Unit,operationsViewModel: FarmOperationsViewModel? = null) {
     val context=LocalContext.current
     val export=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
-        if(uri!=null) message(if(runCatching { checkNotNull(context.contentResolver.openOutputStream(uri)).bufferedWriter(Charsets.UTF_8).use { it.write(state.snapshot()) } }.isSuccess) "Đã xuất bản sao lưu" else "Không thể ghi tệp sao lưu")
+        if(uri!=null) message(if(runCatching { checkNotNull(context.contentResolver.openOutputStream(uri)).bufferedWriter(Charsets.UTF_8).use { it.write(operationsViewModel?.uiState?.value?.lastBackupJson ?: state.snapshot()) } }.isSuccess) "Đã xuất bản sao lưu" else "Không thể ghi tệp sao lưu")
     }
     Page("Sao lưu dữ liệu",back) {
         Column(Modifier.fillMaxWidth().padding(vertical=18.dp),horizontalAlignment=Alignment.CenterHorizontally) {
@@ -55,7 +56,7 @@ fun BackupScreen(state: FarmState,back:()->Unit,message:(String)->Unit) {
             Text("Bảo vệ dữ liệu nông trại của bạn",fontWeight=FontWeight.SemiBold,modifier=Modifier.padding(top=22.dp,bottom=8.dp))
             Text("Sao lưu thường xuyên để tránh mất dữ liệu.",color=Muted,fontSize=13.sp)
         }
-        PrimaryButton("Sao lưu ngay") { state.backup();message("Đã tạo bản sao lưu trên thiết bị") }
+        PrimaryButton("Sao lưu ngay") { state.backup();operationsViewModel?.exportBackupJson();message("Đã tạo bản sao lưu trên thiết bị") }
         Spacer(Modifier.height(10.dp));PrimaryButton("Xuất bản sao lưu ra tệp",pale=true) { export.launch("nong-san-xanh-${today().replace('/','-')}.json") }
         Section("Sao lưu gần đây")
         if(state.backupDate.isBlank()) FarmCard { Text("Chưa có bản sao lưu. Hãy tạo bản đầu tiên.",color=Muted) }
@@ -67,7 +68,7 @@ fun BackupScreen(state: FarmState,back:()->Unit,message:(String)->Unit) {
 }
 
 @Composable
-fun ProfileScreen(state: FarmState,back:()->Unit,logout:()->Unit) {
+fun ProfileScreen(state: FarmState,back:()->Unit,operationsViewModel: FarmOperationsViewModel? = null,logout:()->Unit) {
     var edit by rememberSaveable { mutableStateOf(false) };var name by rememberSaveable { mutableStateOf(state.name) }
     var info by remember { mutableStateOf("") };var confirmLogout by remember { mutableStateOf(false) }
     Page("Hồ sơ cá nhân",back) {
@@ -85,7 +86,7 @@ fun ProfileScreen(state: FarmState,back:()->Unit,logout:()->Unit) {
         Text("Hồ sơ trải nghiệm trên thiết bị",color=Muted,fontSize=11.sp,modifier=Modifier.align(Alignment.CenterHorizontally).padding(top=16.dp))
     }
     InfoDialog("Tài khoản",info) { info="" }
-    if(edit) AlertDialog(onDismissRequest={edit=false},title={Text("Tên hiển thị")},text={Field("Họ và tên",name,{name=it})},confirmButton={TextButton(onClick={if(name.isNotBlank()) {state.name=name.trim();state.save();edit=false}},enabled=name.isNotBlank()) { Text("Lưu") }},dismissButton={TextButton(onClick={edit=false}) { Text("Hủy") }})
+    if(edit) AlertDialog(onDismissRequest={edit=false},title={Text("Tên hiển thị")},text={Field("Họ và tên",name,{name=it})},confirmButton={TextButton(onClick={if(name.isNotBlank()) {val newName=name.trim();state.name=newName;state.save();operationsViewModel?.updateProfile(displayName = newName, email = "nguyenvanan@email.com");edit=false}},enabled=name.isNotBlank()) { Text("Lưu") }},dismissButton={TextButton(onClick={edit=false}) { Text("Hủy") }})
     if(confirmLogout) AlertDialog(onDismissRequest={confirmLogout=false},title={Text("Thoát trải nghiệm?")},text={Text("Dữ liệu trên thiết bị vẫn được giữ lại.")},confirmButton={TextButton(onClick=logout) { Text("Đăng xuất") }},dismissButton={TextButton(onClick={confirmLogout=false}) { Text("Ở lại") }})
 }
 
